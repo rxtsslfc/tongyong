@@ -154,6 +154,8 @@ static inline void __free_hyp_memcache(struct kvm_hyp_memcache *mc,
 
 void free_hyp_memcache(struct kvm_hyp_memcache *mc);
 int topup_hyp_memcache(struct kvm_hyp_memcache *mc, unsigned long min_pages, unsigned long order);
+int topup_hyp_memcache_gfp(struct kvm_hyp_memcache *mc, unsigned long min_pages,
+			   unsigned long order, gfp_t gfp);
 
 static inline void init_hyp_memcache(struct kvm_hyp_memcache *mc)
 {
@@ -1375,4 +1377,7 @@ static inline void *kvm_host_va(phys_addr_t phys)
 {
 	return __va(phys);
 }
+
+int __pkvm_topup_hyp_alloc_mgt_gfp(unsigned long id, unsigned long nr_pages,
+				   unsigned long sz_alloc, gfp_t gfp);
 #endif /* __ARM64_KVM_HOST_H__ */
