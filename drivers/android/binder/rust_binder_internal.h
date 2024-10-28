@@ -14,6 +14,7 @@
 #ifndef _LINUX_RUST_BINDER_INTERNAL_H
 #define _LINUX_RUST_BINDER_INTERNAL_H
 
+#include <linux/rust_binder.h>
 #include <linux/seq_file.h>
 #include <uapi/linux/android/binder.h>
 #include <uapi/linux/android/binderfs.h>
@@ -22,7 +23,7 @@
  * The internal data types in the Rust Binder driver are opaque to C, so we use
  * void pointer typedefs for these types.
  */
-typedef void *rust_binder_device;
+typedef void *rust_binder_context;
 
 int rust_binder_stats_show(struct seq_file *m, void *unused);
 int rust_binder_state_show(struct seq_file *m, void *unused);
@@ -30,23 +31,8 @@ int rust_binder_transactions_show(struct seq_file *m, void *unused);
 int rust_binder_proc_show(struct seq_file *m, void *pid);
 
 extern const struct file_operations rust_binder_fops;
-rust_binder_device rust_binder_new_device(char *name);
-void rust_binder_remove_device(rust_binder_device device);
-
-/**
- * struct binder_device - information about a binder device node
- * @hlist:          list of binder devices (only used for devices requested via
- *                  CONFIG_ANDROID_BINDER_DEVICES)
- * @miscdev:        information about a binder character device node
- * @binderfs_inode: This is the inode of the root dentry of the super block
- *                  belonging to a binderfs mount.
- */
-struct binder_device {
-	struct hlist_node hlist;
-	struct miscdevice miscdev;
-	struct inode *binderfs_inode;
-	refcount_t ref;
-};
+rust_binder_context rust_binder_new_context(char *name);
+void rust_binder_remove_context(rust_binder_context device);
 
 /**
  * binderfs_mount_opts - mount options for binderfs

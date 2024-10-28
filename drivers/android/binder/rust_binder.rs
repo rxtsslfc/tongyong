@@ -322,7 +322,7 @@ pub static rust_binder_fops: AssertSync<kernel::bindings::file_operations> = {
 };
 
 #[no_mangle]
-unsafe extern "C" fn rust_binder_new_device(
+unsafe extern "C" fn rust_binder_new_context(
     name: *const core::ffi::c_char,
 ) -> *mut core::ffi::c_void {
     // SAFETY: The caller will always provide a valid c string here.
@@ -334,7 +334,7 @@ unsafe extern "C" fn rust_binder_new_device(
 }
 
 #[no_mangle]
-unsafe extern "C" fn rust_binder_remove_device(device: *mut core::ffi::c_void) {
+unsafe extern "C" fn rust_binder_remove_context(device: *mut core::ffi::c_void) {
     if !device.is_null() {
         // SAFETY: The caller ensures that the `device` pointer came from a previous call to
         // `rust_binder_new_device`.
@@ -348,9 +348,15 @@ unsafe extern "C" fn rust_binder_open(
     inode: *mut bindings::inode,
     file_ptr: *mut bindings::file,
 ) -> core::ffi::c_int {
-    // SAFETY: The `rust_binderfs.c` file ensures that `i_private` is set to the return value of a
-    // successful call to `rust_binder_new_device`.
-    let ctx = unsafe { Arc::<Context>::borrow((*inode).i_private) };
+    // SAFETY: The `rust_binderfs.c` file ensures that `i_private` is set to a
+    // `struct binder_device`.
+    let device = unsafe { (*inode).i_private } as *const bindings::binder_device;
+
+    assert!(!device.is_null());
+
+    // SAFETY: The `rust_binderfs.c` file ensures that `device->ctx` holds a binder context when
+    // using the rust binder fops.
+    let ctx = unsafe { Arc::<Context>::borrow((*device).ctx) };
 
     // SAFETY: The caller provides a valid file pointer to a new `struct file`.
     let file = unsafe { File::from_raw_file(file_ptr) };

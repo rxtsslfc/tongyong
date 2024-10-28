@@ -123,7 +123,8 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 {
 	int minor, ret;
 	struct dentry *dentry, *root;
-	rust_binder_device device = NULL;
+	struct binder_device *device = NULL;
+	rust_binder_context ctx = NULL;
 	struct inode *inode = NULL;
 	struct super_block *sb = ref_inode->i_sb;
 	struct binderfs_info *info = sb->s_fs_info;
@@ -150,10 +151,14 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 	mutex_unlock(&binderfs_minors_mutex);
 
 	ret = -ENOMEM;
+	device = kzalloc(sizeof(*device), GFP_KERNEL);
+	if (!device)
+		goto err;
+
 	req->name[BINDERFS_MAX_NAME] = '\0'; /* NUL-terminate */
 
-	device = rust_binder_new_device(req->name);
-	if (!device)
+	ctx = rust_binder_new_context(req->name);
+	if (!ctx)
 		goto err;
 
 	inode = new_inode(sb);
@@ -170,6 +175,8 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 
 	req->major = MAJOR(binderfs_dev);
 	req->minor = minor;
+	device->ctx = ctx;
+	device->minor = minor;
 
 	if (userp && copy_to_user(userp, req, sizeof(*req))) {
 		ret = -EFAULT;
@@ -203,7 +210,8 @@ static int binderfs_binder_device_create(struct inode *ref_inode,
 	return 0;
 
 err:
-	rust_binder_remove_device(device);
+	kfree(device);
+	rust_binder_remove_context(ctx);
 	mutex_lock(&binderfs_minors_mutex);
 	--info->device_count;
 	ida_free(&binderfs_minors, minor);
@@ -250,9 +258,8 @@ static long binder_ctl_ioctl(struct file *file, unsigned int cmd,
 
 static void binderfs_evict_inode(struct inode *inode)
 {
-	rust_binder_device device = inode->i_private;
+	struct binder_device *device = inode->i_private;
 	struct binderfs_info *info = BINDERFS_SB(inode->i_sb);
-	int minor = inode->i_ino - INODE_OFFSET;
 
 	clear_inode(inode);
 
@@ -261,10 +268,13 @@ static void binderfs_evict_inode(struct inode *inode)
 
 	mutex_lock(&binderfs_minors_mutex);
 	--info->device_count;
-	ida_free(&binderfs_minors, minor);
+	ida_free(&binderfs_minors, device->minor);
 	mutex_unlock(&binderfs_minors_mutex);
 
-	rust_binder_remove_device(device);
+	/* ctx is null for binder-control, but this function ignores null pointers */
+	rust_binder_remove_context(device->ctx);
+
+	kfree(device);
 }
 
 static int binderfs_fs_context_parse_param(struct fs_context *fc,
@@ -429,9 +439,8 @@ static int binderfs_binder_ctl_create(struct super_block *sb)
 	inode->i_uid = info->root_uid;
 	inode->i_gid = info->root_gid;
 
-	refcount_set(&device->ref, 1);
-	device->binderfs_inode = inode;
-	device->miscdev.minor = minor;
+	device->minor = minor;
+	device->ctx = NULL;
 
 	dentry = d_alloc_name(root, "binder-control");
 	if (!dentry)
