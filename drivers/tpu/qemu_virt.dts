@@ -21,6 +21,27 @@
 		device_type = "memory";
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		tpu_cma_reserve: tpu_cma_reserve {
+			compatible = "shared-dma-pool";
+		reusable;
+		size = <0x0  0x4000000>; /* 64 MiB */
+		alignment = <0x0 0x00010000>;
+		alloc-ranges = <0x0 0x9 0x80000000 0x80000000>,
+			<0x0 0x9 0x00000000 0x80000000>;
+		};
+	};
+
+	tpu_hw_node {
+		compatible = "tpu_hw_dummy";
+		memory-region = <&tpu_cma_reserve>;
+		state = "active";
+	};
+
 	platform-bus@c000000 {
 		interrupt-parent = <0x8002>;
 		ranges = <0x00 0x00 0xc000000 0x2000000>;
@@ -381,10 +402,10 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyAMA0 root=/dev/vda oops=panic panic_on_warn=1 panic=-1 debug earlyprintk=serial";
+		bootargs = "console=ttyAMA0 root=/dev/vda oops=panic panic_on_warn=1 cma=192MB panic=-1 debug earlyprintk=serial";
 		stdout-path = "/pl011@9000000";
-		rng-seed = <0xd71f05f5 0x1f31fc36 0x171abb7b 0xbfc09c28 0xb05e186a 0x88c61e17 0x4608fd1f 0xe6edacbe>;
-		kaslr-seed = <0x1af30dbe 0xf5eb915b>;
+		rng-seed = <0xf6d3d63d 0x492012bf 0x99e8c653 0xebfd5021 0xb49dd01b 0x548c6427 0x73d12532 0xdadb6189>;
+		kaslr-seed = <0x17ef0624 0xe4ddc04d>;
 	};
 };
 
