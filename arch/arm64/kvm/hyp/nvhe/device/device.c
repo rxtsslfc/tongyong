@@ -263,7 +263,7 @@ static int pkvm_get_device_pa(struct pkvm_hyp_vcpu *hyp_vcpu, u64 ipa, u64 *pa, 
 	}
 
 	*pa = kvm_pte_to_phys(pte);
-	*pa |= (ipa & kvm_granule_size(level) - 1) & PAGE_MASK;
+	*pa |= (ipa & (kvm_granule_size(level) - 1)) & PAGE_MASK;
 	return 0;
 }
 
